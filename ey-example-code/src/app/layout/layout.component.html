@@ -1,0 +1,51 @@
+<mat-sidenav-container class="sidenav-container">
+  <mat-sidenav
+    #drawer
+    class="sidenav"
+    fixedInViewport
+    [attr.role]="(isHandset$ | async) ? 'dialog' : 'navigation'"
+    [mode]="(isHandset$ | async) ? 'over' : 'side'"
+    [opened]="(isHandset$ | async) === false"
+  >
+    <mat-toolbar>Menu</mat-toolbar>
+    <mat-nav-list>
+      <div class="layer">
+        <mat-slide-toggle [(ngModel)]="Layer1" (toggleChange)="changeL1()"
+          >Building</mat-slide-toggle
+        >
+        <mat-slide-toggle [(ngModel)]="Layer2" (toggleChange)="changeL2()"
+          >Housing Price</mat-slide-toggle
+        >
+        <mat-slide-toggle [(ngModel)]="Layer3" (toggleChange)="changeL3()"
+          >Customer Point</mat-slide-toggle
+        >
+        <mat-slide-toggle [(ngModel)]="Layer4" (toggleChange)="changeL4()"
+          >L4</mat-slide-toggle
+        >
+        <mat-slide-toggle [(ngModel)]="Layer5" (toggleChange)="changeL5()"
+          >L5</mat-slide-toggle
+        >
+        <mat-slide-toggle [(ngModel)]="Layer6" (toggleChange)="changeL6()"
+          >L6</mat-slide-toggle
+        >
+      </div>
+    </mat-nav-list>
+  </mat-sidenav>
+  <mat-sidenav-content>
+    <mat-toolbar color="primary">
+      <button
+        type="button"
+        aria-label="Toggle sidenav"
+        mat-icon-button
+        (click)="drawer.toggle()"
+        *ngIf="isHandset$ | async"
+      >
+        <mat-icon aria-label="Side nav toggle icon">menu</mat-icon>
+      </button>
+      <span>ArcGIS - Simple App</span>
+    </mat-toolbar>
+    <div id="content">
+      <app-esri-map></app-esri-map>
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
