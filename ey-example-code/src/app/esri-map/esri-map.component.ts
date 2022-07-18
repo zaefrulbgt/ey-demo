@@ -41,27 +41,18 @@ export class EsriMapComponent implements OnInit, OnDestroy {
     //For authentication
     const info = new OAuthInfo({
       appId: 'd9FM1TTjeEzIFlCJ',
+      //part where we can point to the map service in our environment.
+      portalUrl: 'https://zsolution.maps.arcgis.com',
       popup: false,
     });
 
     esriId.registerOAuthInfos([info]);
-    // part where we can point to the map service in our environment.
-    // esriConfig.portalUrl = 'https://goodman-gpp-dev.esriaustraliaonline.com.au/arcgis';
-    // esriConfig.apiKey =
-    //   'AAPKa88bcab3224f46ea802510a3511c3a20hHuCBBpTB6W3toGjbDUtM6PB1uBZH000gxgL_w28cj4NyoGNH8VwPofxmgQNYJ3x';
 
     this.cLogger.webmap = new WebMap({
       portalItem: {
         id: '8f0da2c8426d4b2882ca7051ea0af773',
-        // id: 'ff20b66328824cc0b725a0b69824d3b4',
       },
     });
-
-    // this.cLogger.webmap = new Map({
-    //   basemap: 'gray-vector',
-    // });
-
-    // this.cLogger.webmap = new WebMap()
 
     this.cLogger.view = new MapView({
       container: mapcontainer,
@@ -79,30 +70,11 @@ export class EsriMapComponent implements OnInit, OnDestroy {
       console.log(this.cLogger.view);
     });
 
-    // this.cLogger.view.on('immediate-click', function (event: any) {
-
-    //     .hitTest(event)
-    //     .then((event: any) => {
-    //       console.log(event);
-    //     })
-    //     .catch(function (error: any) {
-    //       console.error(error);
-    //     });
-    // });
-
     return this.cLogger.view.when();
   }
 
   initializeWidget(): void {
     const searchWidget = new SearchWidget({
-      view: this.cLogger.view,
-    });
-
-    const bookmarksWidget = new BookmarksWidget({
-      view: this.cLogger.view,
-    });
-
-    const BasemapLayerListWidget = new BasemapLayerList({
       view: this.cLogger.view,
     });
 
@@ -113,10 +85,8 @@ export class EsriMapComponent implements OnInit, OnDestroy {
 
     this.cLogger.view.ui.add(sketchWidget, 'top-right');
     this.cLogger.view.ui.add(searchWidget, 'top-right');
-    // this.cLogger.view.ui.add(bookmarksWidget, 'top-right');
-    // this.cLogger.view.ui.add(BasemapLayerListWidget, 'top-right');
 
-    sketchWidget.on('create', async (event) => {
+    sketchWidget.on('create', async (event: any) => {
       if (event.state === 'complete') {
         let result = await this.cLogger.spatialQuery(
           this.cLogger.L6,
