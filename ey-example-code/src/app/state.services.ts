@@ -7,8 +7,10 @@ import GraphicLayer from '@arcgis/core/layers/GraphicsLayer';
 import Graphic from '@arcgis/core/Graphic';
 import GeoJSONLayer from '@arcgis/core/layers/GeoJSONLayer';
 import Geometry from '@arcgis/core/geometry/Geometry';
-
+import GeometryPoint from '@arcgis/core/geometry/Point';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
+import * as symbols from '@arcgis/core/symbols';
+import Collection from '@arcgis/core/core/Collection';
 export class Logger {
   webmap: any;
   view: any;
@@ -26,6 +28,8 @@ export class Logger {
   L4: FeatureLayer;
   L5: GeoJSONLayer;
   L6: GeoJSONLayer;
+  LocalFL: FeatureLayer;
+  SourceFL: Collection<Graphic>;
   DL: any;
   L2LayerView: any;
   L3LayerView: any;
@@ -112,6 +116,8 @@ export class Logger {
     if (this.layerSwitch.L5) {
       this.webmap.add(this.L5);
     }
+
+    this.webmap.add(this.LocalFL);
   }
 
   async createCustomer(geometry: any): Promise<boolean> {
@@ -127,6 +133,12 @@ export class Logger {
         addFeatures: [geometry],
       });
       console.log({ a });
+
+      fetch('http://localhost:3000/posts')
+        .then((response) => response.json())
+        .then((data) => {
+          console.log({ data });
+        });
     }
     return true;
   }
@@ -157,7 +169,91 @@ export class Logger {
     return results.features;
   }
 
+  async createLocalFeatureLayer() {
+    let fetcher = await fetch('http://localhost:3000/users');
+    let data = await fetcher.json();
+
+    let feature = Array();
+    data.forEach((user: any) => {
+      //create point
+      let point = new GeometryPoint({
+        latitude: user.latitude,
+        longitude: user.longitude,
+      });
+
+      //create attribute
+      let attribute = {
+        OBJECTID: user._id,
+        name: user.name,
+        age: user.age,
+        gender: user.gender,
+        address: user.address,
+      };
+
+      let simpleMarker = new SimpleMarkerSymbol({
+        color: '#ffii99',
+      });
+
+      let userGraphic = new Graphic({
+        geometry: point,
+        attributes: attribute,
+        symbol: simpleMarker,
+      });
+
+      feature.push(userGraphic);
+
+      this.LocalFL.applyEdits({
+        addFeatures: feature,
+      }).then((result: any) => {
+        console.log({ result });
+      });
+    });
+
+    console.log({ data });
+  }
+
   constructor() {
+    this.SourceFL = new Collection();
+    this.LocalFL = new FeatureLayer({
+      source: this.SourceFL,
+      objectIdField: 'OBJECTID',
+      fields: [
+        {
+          name: 'OBJECTID',
+          type: 'oid',
+        },
+        {
+          name: 'name',
+          type: 'string',
+        },
+        {
+          name: 'age',
+          type: 'string',
+        },
+        {
+          name: 'gender',
+          type: 'string',
+        },
+        {
+          name: 'address',
+          type: 'string',
+        },
+      ],
+      title: 'Local Feature Layer',
+      renderer: new SimpleRenderer({
+        symbol: new SimpleMarkerSymbol({
+          size: 8,
+          color: '#00AFEB',
+          outline: {
+            width: 0.5,
+            color: 'white',
+          },
+        }),
+      }),
+      popupEnabled: true,
+      outFields: ['*'],
+    });
+
     this.L1 = new FeatureLayer({
       url: 'https://services3.arcgis.com/kZLhFeSJ3zmoqnb1/arcgis/rest/services/Building/FeatureServer/0',
       renderer: new SimpleRenderer({
