@@ -10,7 +10,7 @@ import Geometry from '@arcgis/core/geometry/Geometry';
 import GeometryPoint from '@arcgis/core/geometry/Point';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
 import * as symbols from '@arcgis/core/symbols';
-import Collection from '@arcgis/core/core/Collection';
+import Collection from "@arcgis/core/core/Collection";
 export class Logger {
   webmap: any;
   view: any;
@@ -21,6 +21,7 @@ export class Logger {
     L4: false,
     L5: false,
     L6: false,
+    L7: false
   };
   L1: FeatureLayer;
   L2: FeatureLayer;
@@ -28,14 +29,14 @@ export class Logger {
   L4: FeatureLayer;
   L5: GeoJSONLayer;
   L6: GeoJSONLayer;
-  LocalFL: FeatureLayer;
-  SourceFL: Collection<Graphic>;
+  LocalFL: FeatureLayer | null = null;
   DL: any;
   L2LayerView: any;
   L3LayerView: any;
   L4LayerView: any;
   L5LayerView: any;
   L6LayerView: any;
+  L7LayerView: any;
 
   onChangeL1(): void {
     if (this.layerSwitch.L1) {
@@ -101,6 +102,18 @@ export class Logger {
     }
   }
 
+  onChangeL7(): void {
+    if (this.layerSwitch.L7) {
+      this.view.map.add(this.LocalFL);
+      this.view.whenLayerView(this.LocalFL).then((layerView: any) => {
+        this.L7LayerView = layerView;
+        console.log('layerview', this.L7LayerView);
+      });
+    } else {
+      this.view.map.remove(this.LocalFL);
+    }
+  }
+
   initializeLayer(): void {
     // this.view.map.add(this.L1);
     if (this.layerSwitch.L2) {
@@ -110,14 +123,14 @@ export class Logger {
       this.view.map.add(this.L3);
       this.view.whenLayerView(this.L3).then((layerView: any) => {
         this.L3LayerView = layerView;
-        console.log('layerview', this.L3LayerView);
+        // console.log('layerview', this.L3LayerView);
       });
     }
     if (this.layerSwitch.L5) {
       this.webmap.add(this.L5);
     }
 
-    this.webmap.add(this.LocalFL);
+    this.createLocalFeatureLayer();
   }
 
   async createCustomer(geometry: any): Promise<boolean> {
@@ -173,7 +186,8 @@ export class Logger {
     let fetcher = await fetch('http://localhost:3000/users');
     let data = await fetcher.json();
 
-    let feature = Array();
+    let sourceFL: Collection<Graphic> = new Collection<Graphic>();
+
     data.forEach((user: any) => {
       //create point
       let point = new GeometryPoint({
@@ -200,22 +214,11 @@ export class Logger {
         symbol: simpleMarker,
       });
 
-      feature.push(userGraphic);
-
-      this.LocalFL.applyEdits({
-        addFeatures: feature,
-      }).then((result: any) => {
-        console.log({ result });
-      });
+      sourceFL.push(userGraphic);
     });
 
-    console.log({ data });
-  }
-
-  constructor() {
-    this.SourceFL = new Collection();
     this.LocalFL = new FeatureLayer({
-      source: this.SourceFL,
+      source: sourceFL,
       objectIdField: 'OBJECTID',
       fields: [
         {
@@ -254,6 +257,10 @@ export class Logger {
       outFields: ['*'],
     });
 
+    this.webmap.add(this.LocalFL);
+  }
+
+  constructor() {
     this.L1 = new FeatureLayer({
       url: 'https://services3.arcgis.com/kZLhFeSJ3zmoqnb1/arcgis/rest/services/Building/FeatureServer/0',
       renderer: new SimpleRenderer({
