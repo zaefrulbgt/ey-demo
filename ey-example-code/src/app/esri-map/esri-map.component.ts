@@ -31,6 +31,7 @@ export class EsriMapComponent implements OnInit, OnDestroy {
   LayerView: any;
   constructor(private cLogger: Logger) {
     console.log(this.cLogger.view);
+    this.cLogger.createLocalFeatureLayer();
   }
 
   @ViewChild('viewDiv', { static: true }) private viewDiv!: ElementRef;
