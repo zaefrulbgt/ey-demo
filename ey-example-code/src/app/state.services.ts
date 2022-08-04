@@ -10,7 +10,8 @@ import Geometry from '@arcgis/core/geometry/Geometry';
 import GeometryPoint from '@arcgis/core/geometry/Point';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
 import * as symbols from '@arcgis/core/symbols';
-import Collection from "@arcgis/core/core/Collection";
+import Collection from '@arcgis/core/core/Collection';
+import FeatureReductionCluster from '@arcgis/core/layers/support/FeatureReductionCluster';
 export class Logger {
   webmap: any;
   view: any;
@@ -21,7 +22,7 @@ export class Logger {
     L4: false,
     L5: false,
     L6: false,
-    L7: false
+    L7: false,
   };
   L1: FeatureLayer;
   L2: FeatureLayer;
@@ -183,12 +184,12 @@ export class Logger {
   }
 
   async createLocalFeatureLayer() {
-    let fetcher = await fetch('http://localhost:3000/users');
+    let fetcher = await fetch('http://localhost:3000/data');
     let data = await fetcher.json();
 
     let sourceFL: Collection<Graphic> = new Collection<Graphic>();
 
-    data.forEach((user: any) => {
+    data.data.forEach((user: any) => {
       //create point
       let point = new GeometryPoint({
         latitude: user.latitude,
@@ -196,12 +197,19 @@ export class Logger {
       });
 
       //create attribute
+      // let attribute = {
+      //   OBJECTID: user._id,
+      //   name: user.name,
+      //   age: user.age,
+      //   gender: user.gender,
+      //   address: user.address,
+      // };
       let attribute = {
-        OBJECTID: user._id,
+        OBJECTID: user.assetDetailsId,
         name: user.name,
         age: user.age,
-        gender: user.gender,
-        address: user.address,
+        ownership: user.ownership,
+        address: user.currentLocationDescription,
       };
 
       let simpleMarker = new SimpleMarkerSymbol({
@@ -215,6 +223,40 @@ export class Logger {
       });
 
       sourceFL.push(userGraphic);
+    });
+
+    let cluster = new FeatureReductionCluster({
+      clusterRadius: 100,
+      popupTemplate: {
+        content: 'This cluster represents <b>{cluster_count}</b> features.',
+        fieldInfos: [
+          {
+            fieldName: 'cluster_count',
+            format: {
+              digitSeparator: true,
+              places: 0,
+            },
+          },
+        ],
+      },
+      labelingInfo: [
+        {
+          deconflictionStrategy: 'none',
+          labelExpressionInfo: {
+            expression: "Text($feature.cluster_count, '#,###')",
+          },
+          symbol: {
+            type: 'text',
+            color: '#004a5d',
+            font: {
+              weight: 'bold',
+              family: 'Noto Sans',
+              size: '12px',
+            },
+          },
+          labelPlacement: 'center-center',
+        },
+      ],
     });
 
     this.LocalFL = new FeatureLayer({
@@ -255,6 +297,7 @@ export class Logger {
       }),
       popupEnabled: true,
       outFields: ['*'],
+      featureReduction: cluster,
     });
 
     this.webmap.add(this.LocalFL);
