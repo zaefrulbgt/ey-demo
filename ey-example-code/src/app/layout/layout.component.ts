@@ -16,6 +16,7 @@ export class LayoutComponent implements OnInit {
   Layer4: boolean;
   Layer5: boolean;
   Layer6: boolean;
+  Layer7: boolean;
 
   changeL1(): void {
     console.log(this.Layer1);
@@ -47,6 +48,11 @@ export class LayoutComponent implements OnInit {
     this.cLogger.layerSwitch.L6 = !this.Layer6;
     this.cLogger.onChangeL6();
   }
+  changeL7(): void {
+    console.log(this.Layer7);
+    this.cLogger.layerSwitch.L7 = !this.Layer7;
+    this.cLogger.onChangeL7();
+  }
 
   isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
@@ -65,6 +71,7 @@ export class LayoutComponent implements OnInit {
     this.Layer4 = this.cLogger.layerSwitch.L4;
     this.Layer5 = this.cLogger.layerSwitch.L5;
     this.Layer6 = this.cLogger.layerSwitch.L6;
+    this.Layer7 = this.cLogger.layerSwitch.L7;
   }
 
   ngOnInit() {}
