@@ -20,6 +20,11 @@ import BasemapLayerList from '@arcgis/core/widgets/BasemapGallery';
 import { Logger } from '../state.services';
 import Sketch from '@arcgis/core/widgets/Sketch';
 import * as geometryEngineAsync from '@arcgis/core/geometry/geometryEngineAsync';
+import LayerList from '@arcgis/core/widgets/LayerList';
+import Graphic from '@arcgis/core/Graphic';
+import { SimpleMarkerSymbol } from '@arcgis/core/symbols';
+import GraphicsLayer from '@arcgis/core/layers/GraphicsLayer';
+import Point from '@arcgis/core/geometry/Point';
 
 @Component({
   selector: 'app-esri-map',
@@ -70,6 +75,22 @@ export class EsriMapComponent implements OnInit, OnDestroy {
       console.log(this.cLogger.view);
     });
 
+    this.cLogger.view.popup.on('trigger-action', (event: any) => {
+      this.cLogger.clearViewGraphics();
+
+      const popup = this.cLogger.view.popup;
+      const selectedFeature =
+        popup.selectedFeature && popup.selectedFeature.isAggregate;
+
+      const id = event.action.id;
+
+      if (id === 'show-features') {
+        this.cLogger.showFeature(this.cLogger.view.popup.selectedFeature);
+      }
+    });
+
+    //Optional code for clearing the feature cluster spread
+
     return this.cLogger.view.when();
   }
 
@@ -103,12 +124,49 @@ export class EsriMapComponent implements OnInit, OnDestroy {
         }
       }
     });
+
+    const layerList = new LayerList({
+      view: this.cLogger.view,
+    });
+    this.cLogger.view.ui.add(layerList, 'top-right');
+
+    // this.cLogger.view.on('immediate-click', (event: any) => {
+    //   this.cLogger.view
+    //     .hitTest(event)
+    //     .then((response: any) => {})
+    //     .catch((err: any) => {
+    //       console.error(err);
+    //     });
+    // });
   }
 
   ngOnInit(): void {
     this.initializeMap().then(() => {
       console.log('map initialized');
+
+      // this.cLogger.view.on('immediate-click', (event: any) => {
+      //   this.cLogger.view.hitTest(event).then((response: any) => {
+      //     let tempGraphic = new Graphic();
+      //     tempGraphic.symbol = new SimpleMarkerSymbol({
+      //       size: 8,
+      //       color: '#00AFEB',
+      //       outline: {
+      //         width: 0.5,
+      //         color: 'white',
+      //       },
+      //     });
+
+      //     tempGraphic.geometry = new Point({
+      //       x: event.mapPoint.x,
+      //       y: event.mapPoint.y,
+      //     });
+
+      //     this.cLogger.drawedPoint = tempGraphic;
+      //     this.cLogger.DrawLayer.add(this.cLogger.drawedPoint);
+      //   });
+      // });
     });
+
     this.initializeWidget();
     this.cLogger.initializeLayer();
   }

@@ -9,9 +9,10 @@ import GeoJSONLayer from '@arcgis/core/layers/GeoJSONLayer';
 import Geometry from '@arcgis/core/geometry/Geometry';
 import GeometryPoint from '@arcgis/core/geometry/Point';
 import PictureMarkerSymbol from '@arcgis/core/symbols/PictureMarkerSymbol';
-import * as symbols from '@arcgis/core/symbols';
+import * as symbolUtils from '@arcgis/core/symbols/support/symbolUtils';
 import Collection from '@arcgis/core/core/Collection';
 import FeatureReductionCluster from '@arcgis/core/layers/support/FeatureReductionCluster';
+import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
 export class Logger {
   webmap: any;
   view: any;
@@ -30,6 +31,7 @@ export class Logger {
   L4: FeatureLayer;
   L5: GeoJSONLayer;
   L6: GeoJSONLayer;
+  LayerHiddenFromList: FeatureLayer;
   LocalFL: FeatureLayer | null = null;
   DL: any;
   L2LayerView: any;
@@ -38,6 +40,10 @@ export class Logger {
   L5LayerView: any;
   L6LayerView: any;
   L7LayerView: any;
+  LocalFLLayerView: any;
+  LocalFLGraphics: any;
+  DrawLayer: GraphicLayer;
+  drawedPoint: any;
 
   onChangeL1(): void {
     if (this.layerSwitch.L1) {
@@ -106,10 +112,10 @@ export class Logger {
   onChangeL7(): void {
     if (this.layerSwitch.L7) {
       this.view.map.add(this.LocalFL);
-      this.view.whenLayerView(this.LocalFL).then((layerView: any) => {
-        this.L7LayerView = layerView;
-        console.log('layerview', this.L7LayerView);
-      });
+      // this.view.whenLayerView(this.LocalFL).then((layerView: any) => {
+      //   this.L7LayerView = layerView;
+      //   console.log('layerview', this.L7LayerView);
+      // });
     } else {
       this.view.map.remove(this.LocalFL);
     }
@@ -132,6 +138,9 @@ export class Logger {
     }
 
     this.createLocalFeatureLayer();
+
+    this.webmap.add(this.LayerHiddenFromList);
+    this.webmap.add(this.DrawLayer);
   }
 
   async createCustomer(geometry: any): Promise<boolean> {
@@ -226,7 +235,8 @@ export class Logger {
     });
 
     let cluster = new FeatureReductionCluster({
-      clusterRadius: 100,
+      clusterMaxSize: 100,
+      clusterMinSize: 50,
       popupTemplate: {
         content: 'This cluster represents <b>{cluster_count}</b> features.',
         fieldInfos: [
@@ -238,6 +248,13 @@ export class Logger {
             },
           },
         ],
+        actions: new Collection([
+          {
+            title: 'Show features',
+            id: 'show-features',
+            className: 'esri-icon-maps',
+          },
+        ]),
       },
       labelingInfo: [
         {
@@ -247,7 +264,7 @@ export class Logger {
           },
           symbol: {
             type: 'text',
-            color: '#004a5d',
+            color: '#ffffff',
             font: {
               weight: 'bold',
               family: 'Noto Sans',
@@ -260,7 +277,8 @@ export class Logger {
     });
 
     this.LocalFL = new FeatureLayer({
-      source: sourceFL,
+      url: 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/ArcGIS/rest/services/Structures_Landmarks_v1/FeatureServer/0',
+      // source: sourceFL,
       objectIdField: 'OBJECTID',
       fields: [
         {
@@ -285,22 +303,67 @@ export class Logger {
         },
       ],
       title: 'Local Feature Layer',
-      renderer: new SimpleRenderer({
-        symbol: new SimpleMarkerSymbol({
-          size: 8,
-          color: '#00AFEB',
-          outline: {
-            width: 0.5,
-            color: 'white',
-          },
-        }),
-      }),
+      // renderer: new SimpleRenderer({
+      //   symbol: new PictureMarkerSymbol({
+      //     url: 'https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png',
+      //     width: '64px',
+      //     height: '64px',
+      //   }),
+      // }),
       popupEnabled: true,
       outFields: ['*'],
       featureReduction: cluster,
     });
 
-    this.webmap.add(this.LocalFL);
+    // this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
+    // reactiveUtils.watch(
+    //   () => [
+    //     this.view.scale,
+    //     this.view.popup.selectedFeature,
+    //     this.view.popup.visible,
+    //   ],
+    //   this.clearViewGraphics
+    // );
+  }
+
+  async showFeature(graphic: Graphic) {
+    console.log('hahahaha');
+    if (this.LocalFLGraphics && this.view) {
+      this.view.graphics.removeMany(this.LocalFLGraphics);
+      this.LocalFLGraphics = null;
+    }
+    this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
+    this.processParams(graphic, this.LocalFLLayerView);
+
+    const query = this.LocalFLLayerView.createQuery();
+    query.aggregateIds = [graphic.getObjectId()];
+    const { features } = await this.LocalFLLayerView.queryFeatures(query);
+
+    features.forEach(async (feature: Graphic) => {
+      const symbol = await symbolUtils.getDisplayedSymbol(feature);
+      feature.symbol = symbol;
+      this.view.graphics.add(feature);
+    });
+    this.LocalFLGraphics = features;
+  }
+
+  processParams(graphic: Graphic, layerView: any) {
+    console.log({ graphic });
+    console.log({ layerView });
+    if (!graphic || !layerView) {
+      throw new Error('Graphic or layerView not provided.');
+    }
+
+    if (!graphic.isAggregate) {
+      throw new Error('Graphic must represent a cluster.');
+    }
+  }
+
+  clearViewGraphics() {
+    // if (this.LocalFLGraphics && this.view) {
+    //   this.view.graphics.removeMany(this.LocalFLGraphics);
+    //   this.LocalFLGraphics = null;
+    // }
   }
 
   constructor() {
@@ -357,6 +420,20 @@ export class Logger {
 
     this.L6 = new GeoJSONLayer({
       url: 'https://raw.githubusercontent.com/zaefrulbgt/ey-demo/main/poll-district.geo.json',
+    });
+
+    this.LayerHiddenFromList = new FeatureLayer({
+      url: 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/ArcGIS/rest/services/Structures_Landmarks_v1/FeatureServer/0',
+      // Hide it from the list
+      listMode: 'hide',
+      // to makesure it available accross all zoom level
+      minScale: 0,
+      maxScale: 0,
+      visible: false,
+    });
+
+    this.DrawLayer = new GraphicLayer({
+      title: 'drawing layer',
     });
   }
 }
