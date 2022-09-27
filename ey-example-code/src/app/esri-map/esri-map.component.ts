@@ -75,6 +75,24 @@ export class EsriMapComponent implements OnInit, OnDestroy {
       console.log(this.cLogger.view);
     });
 
+    // listen to cluster extent
+    this.cLogger.view.on('click', (event: any) => {
+      let countTest: any = null;
+      this.cLogger.view.hitTest(event).then((response: any) => {
+        response.results.forEach((result: any) => {
+          if (result && this.cLogger && this.cLogger.LocalFL) {
+            if (result.layer.id === this.cLogger.LocalFL.id) {
+              countTest = result;
+            }
+          }
+        });
+        if (countTest) {
+          console.log(response, 'response');
+          this.cLogger.zoomTo(countTest.graphic);
+        }
+      });
+    });
+
     this.cLogger.view.popup.on('trigger-action', (event: any) => {
       this.cLogger.clearViewGraphics();
 

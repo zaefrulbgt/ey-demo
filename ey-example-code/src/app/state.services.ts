@@ -13,6 +13,7 @@ import * as symbolUtils from '@arcgis/core/symbols/support/symbolUtils';
 import Collection from '@arcgis/core/core/Collection';
 import FeatureReductionCluster from '@arcgis/core/layers/support/FeatureReductionCluster';
 import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
+import Extent from '@arcgis/core/geometry/Extent';
 export class Logger {
   webmap: any;
   view: any;
@@ -326,8 +327,8 @@ export class Logger {
     // );
   }
 
-  async showFeature(graphic: Graphic) {
-    console.log('hahahaha');
+  // zoom to cluster extent
+  async zoomTo(graphic: Graphic) {
     if (this.LocalFLGraphics && this.view) {
       this.view.graphics.removeMany(this.LocalFLGraphics);
       this.LocalFLGraphics = null;
@@ -338,7 +339,48 @@ export class Logger {
     const query = this.LocalFLLayerView.createQuery();
     query.aggregateIds = [graphic.getObjectId()];
     const { features } = await this.LocalFLLayerView.queryFeatures(query);
+    let extent: any = null;
+    let clusterDifferentLatitudeLongitude = false;
+    const latitude = features[0].geometry.latitude;
+    const longitude = features[0].geometry.longitude;
+    features.forEach((feature: any, index: number) => {
+      console.log(feature, 'feature');
+      if (
+        index > 0 &&
+        latitude === feature.geometry.latitude &&
+        longitude === feature.geometry.longitude
+      ) {
+        clusterDifferentLatitudeLongitude = true;
+      }
+      if (feature.geometry.type === 'point') {
+        let geometryExtent = new Extent({
+          xmin: feature.geometry.x - 0.00001,
+          xmax: feature.geometry.x + 0.00001,
+          ymin: feature.geometry.y - 0.00001,
+          ymax: feature.geometry.y + 0.00001,
+          spatialReference: feature.geometry.spatialReference,
+        });
+        extent = extent ? extent.union(geometryExtent) : geometryExtent;
+      }
+    });
+    if (clusterDifferentLatitudeLongitude) {
+      alert('Same coordinate');
+    } else {
+      this.view.goTo(extent);
+    }
+  }
 
+  async showFeature(graphic: Graphic) {
+    if (this.LocalFLGraphics && this.view) {
+      this.view.graphics.removeMany(this.LocalFLGraphics);
+      this.LocalFLGraphics = null;
+    }
+    this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
+    this.processParams(graphic, this.LocalFLLayerView);
+
+    const query = this.LocalFLLayerView.createQuery();
+    query.aggregateIds = [graphic.getObjectId()];
+    const { features } = await this.LocalFLLayerView.queryFeatures(query);
     features.forEach(async (feature: Graphic) => {
       const symbol = await symbolUtils.getDisplayedSymbol(feature);
       feature.symbol = symbol;
