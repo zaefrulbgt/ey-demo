@@ -14,9 +14,14 @@ import Collection from '@arcgis/core/core/Collection';
 import FeatureReductionCluster from '@arcgis/core/layers/support/FeatureReductionCluster';
 import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
 import Extent from '@arcgis/core/geometry/Extent';
+import * as geometryEngine from '@arcgis/core/geometry/geometryEngine';
+import { BehaviorSubject } from 'rxjs';
+// import Graphic from '@arcgis/core/Graphic';
+
 export class Logger {
   webmap: any;
   view: any;
+  nearbyActivate = new BehaviorSubject(false);
   layerSwitch: any = {
     L1: false,
     L2: false,
@@ -119,6 +124,16 @@ export class Logger {
       // });
     } else {
       this.view.map.remove(this.LocalFL);
+    }
+  }
+
+  onChangeNearby(): void {
+    if (this.nearbyActivate) {
+      if (this.view) {
+        this.view.graphics = [];
+        this.LocalFLGraphics = null;
+      }
+      if (this.LocalFL) this.LocalFL.visible = true;
     }
   }
 
@@ -329,44 +344,129 @@ export class Logger {
 
   // zoom to cluster extent
   async zoomTo(graphic: Graphic) {
-    if (this.LocalFLGraphics && this.view) {
-      this.view.graphics.removeMany(this.LocalFLGraphics);
-      this.LocalFLGraphics = null;
-    }
-    this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
+    // query on the view side and not query from rest api
+    this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL);
+    // check if the layer and graphic is not null
     this.processParams(graphic, this.LocalFLLayerView);
 
+    // create query object from layer view
     const query = this.LocalFLLayerView.createQuery();
+
+    // get id of cluster point
     query.aggregateIds = [graphic.getObjectId()];
+
+    // query the layer view
     const { features } = await this.LocalFLLayerView.queryFeatures(query);
+
+    // extent holder
     let extent: any = null;
-    let clusterDifferentLatitudeLongitude = false;
+
+    // flag indicate if all the cluster point has same latitude or longitude
+    let clusterDifferentLatitudeLongitude = 0;
+
+    // get the first latitude or longitude
     const latitude = features[0].geometry.latitude;
     const longitude = features[0].geometry.longitude;
-    features.forEach((feature: any, index: number) => {
-      console.log(feature, 'feature');
+
+    // interate results from query
+    features.forEach((feature: any) => {
+      // check if all point has same latitude or longitude
       if (
-        index > 0 &&
         latitude === feature.geometry.latitude &&
         longitude === feature.geometry.longitude
       ) {
-        clusterDifferentLatitudeLongitude = true;
+        clusterDifferentLatitudeLongitude++;
       }
+      // check if geometry is point then we need to combine the extent
       if (feature.geometry.type === 'point') {
         let geometryExtent = new Extent({
-          xmin: feature.geometry.x - 0.00001,
-          xmax: feature.geometry.x + 0.00001,
-          ymin: feature.geometry.y - 0.00001,
-          ymax: feature.geometry.y + 0.00001,
+          xmin: feature.geometry.x,
+          xmax: feature.geometry.x,
+          ymin: feature.geometry.y,
+          ymax: feature.geometry.y,
           spatialReference: feature.geometry.spatialReference,
         });
+        // combine the extend of each point
         extent = extent ? extent.union(geometryExtent) : geometryExtent;
       }
     });
-    if (clusterDifferentLatitudeLongitude) {
+    // if has same latitude or longitude showing alert
+    if (clusterDifferentLatitudeLongitude === features.length) {
       alert('Same coordinate');
     } else {
+      // zoom to extent
       this.view.goTo(extent);
+    }
+  }
+
+  async nearby(graphic: Graphic) {
+    // clear graphic
+    if (this.LocalFLGraphics && this.view) {
+      this.view.graphics.removeMany(this.LocalFLGraphics);
+      this.view.graphics = [];
+      this.LocalFLGraphics = null;
+    }
+    // make buffer from the point click, it will create the buffer as polygon
+    const ptBuff: any = geometryEngine.buffer(
+      graphic.geometry,
+      5,
+      'kilometers'
+    );
+
+    // symbol configuration
+    let polygonSymbol = {
+      type: 'simple-fill', // autocasts as new SimpleFillSymbol()
+      color: [0, 255, 255, 0.2],
+      style: 'solid',
+      outline: {
+        // autocasts as new SimpleLineSymbol()
+        color: 'white',
+        width: 1,
+      },
+    };
+
+    // create graphic from polygon
+    let polygon = new Graphic({
+      geometry: ptBuff,
+      symbol: polygonSymbol,
+      attributes: {},
+    });
+
+    if (this.LocalFL) {
+      this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
+      const query = this.LocalFLLayerView.createQuery();
+      // use the polygon (buffer point) as geometry to query
+      query.geometry = polygon.geometry;
+      // check and query layer if those point is contain in polygon radius
+      query.spatialRelationship = 'contains'; // this is the default
+
+      // return geometry shape
+      query.returnGeometry = true;
+
+      // return all attributes fields
+      query.outFields = ['*'];
+
+      // query the layer
+      const { features } = await this.LocalFLLayerView.queryFeatures(query);
+      // const { features } = await this.LocalFL.queryFeatures(query);
+
+      // iterate through each layer and add to graphic layer
+      this.view.graphics = [];
+      features.forEach(async (feature: Graphic) => {
+        // console.log(feature, 'feature');
+        const symbol = await symbolUtils.getDisplayedSymbol(feature);
+        feature.symbol = symbol;
+        // add graphic to graphic layer
+        this.view.graphics.add(feature);
+      });
+      // add polygon buffer to graphic layer
+      this.view.graphics.add(polygon);
+      // assign the value feat
+      // zoom to buffer extent
+      this.view.goTo(polygon.geometry.extent);
+      // hide the cluster layer
+      this.LocalFL.visible = false;
+      this.nearbyActivate.next(true);
     }
   }
 

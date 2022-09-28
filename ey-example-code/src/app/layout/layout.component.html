@@ -31,6 +31,13 @@
         <mat-slide-toggle [(ngModel)]="Layer7" (toggleChange)="changeL7()"
           >Local FL</mat-slide-toggle
         >
+        <div *ngIf="nearbyActivate == true">
+          <mat-slide-toggle
+            [(ngModel)]="nearbyActivate"
+            (toggleChange)="changeNearbyActivate()"
+            >Nearby Deactivate</mat-slide-toggle
+          >
+        </div>
       </div>
     </mat-nav-list>
   </mat-sidenav>

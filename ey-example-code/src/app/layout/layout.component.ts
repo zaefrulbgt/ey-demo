@@ -17,6 +17,7 @@ export class LayoutComponent implements OnInit {
   Layer5: boolean;
   Layer6: boolean;
   Layer7: boolean;
+  nearbyActivate: boolean = false;
 
   changeL1(): void {
     console.log(this.Layer1);
@@ -54,6 +55,12 @@ export class LayoutComponent implements OnInit {
     this.cLogger.onChangeL7();
   }
 
+  changeNearbyActivate(): void {
+    this.nearbyActivate = !this.nearbyActivate;
+    this.cLogger.nearbyActivate.next(!this.nearbyActivate);
+    this.cLogger.onChangeNearby();
+  }
+
   isHandset$: Observable<boolean> = this.breakpointObserver
     .observe(Breakpoints.Handset)
     .pipe(
@@ -74,5 +81,9 @@ export class LayoutComponent implements OnInit {
     this.Layer7 = this.cLogger.layerSwitch.L7;
   }
 
-  ngOnInit() {}
+  ngOnInit() {
+    this.cLogger.nearbyActivate.subscribe((res) => {
+      this.nearbyActivate = res;
+    });
+  }
 }
