@@ -16,8 +16,8 @@ import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
 import Extent from '@arcgis/core/geometry/Extent';
 import * as geometryEngine from '@arcgis/core/geometry/geometryEngine';
 import { BehaviorSubject } from 'rxjs';
-import { PointSymbol3D } from 'esri/symbols';
-import { Point } from 'esri/geometry';
+import Point from '@arcgis/core/geometry/Point';
+import SpatialReference from '@arcgis/core/geometry/SpatialReference';
 // import Graphic from '@arcgis/core/Graphic';
 
 export class Logger {
@@ -435,29 +435,6 @@ export class Logger {
     });
 
     if (this.LocalFL) {
-      // example to create graphic from custom api
-      // let data = await this.customAPI();
-      // data.forEach(d => {
-      //   let point = new Point({
-      //     latitude: d.latitude,
-      //     longitude: d.longitude
-      //   })
-
-      //   const simpleMarkerSymbol = {
-      //     type: "simple-marker",
-      //     color: [226, 119, 40],  // Orange
-      //     outline: {
-      //         color: [255, 255, 255], // White
-      //         width: 1
-      //     }
-      //  };
-      //   let graphic = new Graphic({
-      //     geometry: point,
-      //     symbol: simpleMarkerSymbol,
-      //     attributes: d.attribute
-      //   });
-      //   this.view.graphics.add(graphic);
-      // })
       this.LocalFLLayerView = await this.view.whenLayerView(this.LocalFL); // this.webmap.add(this.LocalFL);
       const query = this.LocalFLLayerView.createQuery();
       // use the polygon (buffer point) as geometry to query
