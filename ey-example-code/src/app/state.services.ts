@@ -476,6 +476,7 @@ export class Logger {
         });
 
         this.DrawLayer.graphics.add(polygon);
+        this.view.goTo(polygon.geometry.extent);
         this.nearbyCustom = !this.nearbyCustom;
       }
     }
