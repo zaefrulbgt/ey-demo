@@ -16,13 +16,16 @@ import * as reactiveUtils from '@arcgis/core/core/reactiveUtils';
 import Extent from '@arcgis/core/geometry/Extent';
 import * as geometryEngine from '@arcgis/core/geometry/geometryEngine';
 import { BehaviorSubject } from 'rxjs';
+import { listOfPoints, mainPoint } from './point.constant';
 import Point from '@arcgis/core/geometry/Point';
 import SpatialReference from '@arcgis/core/geometry/SpatialReference';
+
 // import Graphic from '@arcgis/core/Graphic';
 
 export class Logger {
   webmap: any;
   view: any;
+  nearbyCustom: boolean = false;
   nearbyActivate = new BehaviorSubject(false);
   layerSwitch: any = {
     L1: false,
@@ -401,13 +404,92 @@ export class Logger {
     }
   }
 
+  async fakePromisePoint(): Promise<any> {
+    return new Promise((resolve, reject) => {
+      resolve(listOfPoints);
+    });
+  }
+
+  async nearbyCustomAPI() {
+    // clear graphic
+    if (this.view && this.DrawLayer) {
+      this.DrawLayer.graphics.removeAll();
+    }
+
+    if (this.nearbyCustom) {
+      this.nearbyCustom = !this.nearbyCustom;
+      this.DrawLayer.graphics.removeAll();
+    } else {
+      // make buffer from the point click, it will create the buffer as polygon
+      let nearbyPoint = new Point({
+        latitude: mainPoint.latitude,
+        longitude: mainPoint.longitude,
+        spatialReference: new SpatialReference({ wkid: 3857 }),
+      });
+      // console.log(nearbyPoint, 'nearby point');
+      const ptBuff: any = geometryEngine.buffer(nearbyPoint, 5, 'kilometers');
+
+      // symbol configuration
+      let polygonSymbol = {
+        type: 'simple-fill', // autocasts as new SimpleFillSymbol()
+        color: [0, 255, 255, 0.2],
+        style: 'solid',
+        outline: {
+          // autocasts as new SimpleLineSymbol()
+          color: 'white',
+          width: 1,
+        },
+      };
+
+      // create graphic from polygon
+      let polygon = new Graphic({
+        geometry: ptBuff,
+        symbol: polygonSymbol,
+        attributes: mainPoint.attributes,
+      });
+
+      if (this.DrawLayer) {
+        let results = await this.fakePromisePoint();
+        console.log(results, 'data');
+        results.forEach((d: any) => {
+          let tempPoint = new Point({
+            latitude: d.latitude,
+            longitude: d.longitude,
+            spatialReference: new SpatialReference({
+              wkid: 3857,
+            }),
+          });
+          const simpleMarkerSymbol = {
+            type: 'simple-marker',
+            color: [226, 119, 40], // Orange
+            outline: {
+              color: [255, 255, 255], // White
+              width: 1,
+            },
+          };
+          let graphic = new Graphic({
+            geometry: tempPoint,
+            symbol: simpleMarkerSymbol,
+            attributes: d.attributes,
+          });
+          this.DrawLayer.graphics.add(graphic);
+        });
+
+        this.DrawLayer.graphics.add(polygon);
+        this.nearbyCustom = !this.nearbyCustom;
+      }
+    }
+  }
+
   async nearby(graphic: Graphic) {
     // clear graphic
-    if (this.view) {
-      // this.view.graphics.removeMany(this.LocalFLGraphics);
+    if (this.LocalFLGraphics && this.view) {
+      this.view.graphics.removeMany(this.LocalFLGraphics);
       this.view.graphics = [];
-      // this.LocalFLGraphics = null;
+      this.LocalFLGraphics = null;
     }
+
+    console.log(graphic.geometry, 'graphic geometry');
     // make buffer from the point click, it will create the buffer as polygon
     const ptBuff: any = geometryEngine.buffer(
       graphic.geometry,
@@ -455,7 +537,7 @@ export class Logger {
       // iterate through each layer and add to graphic layer
       this.view.graphics = [];
       features.forEach(async (feature: Graphic) => {
-        // console.log(feature, 'feature');
+        console.log(feature, 'feature');
         const symbol = await symbolUtils.getDisplayedSymbol(feature);
         feature.symbol = symbol;
         // add graphic to graphic layer
@@ -468,7 +550,6 @@ export class Logger {
       this.view.goTo(polygon.geometry.extent);
       // hide the cluster layer
       this.LocalFL.visible = false;
-      // more un angular part
       this.nearbyActivate.next(true);
     }
   }

@@ -86,4 +86,8 @@ export class LayoutComponent implements OnInit {
       this.nearbyActivate = res;
     });
   }
+
+  async onNearby() {
+    await this.cLogger.nearbyCustomAPI();
+  }
 }
